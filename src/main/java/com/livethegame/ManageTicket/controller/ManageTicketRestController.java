@@ -3,6 +3,7 @@ package com.livethegame.ManageTicket.controller;
 import com.livethegame.ManageTicket.dto.FoundTicketResponse;
 import com.livethegame.ManageTicket.dto.TicketRequest;
 import com.livethegame.ManageTicket.dto.TicketResponse;
+import com.livethegame.ManageTicket.dto.TournamentInfoResponse;
 import com.livethegame.ManageTicket.exception.*;
 import com.livethegame.ManageTicket.services.MonitoringService;
 import com.livethegame.ManageTicket.services.TicketService;
@@ -58,6 +59,22 @@ public class ManageTicketRestController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Id ticket inválido: " + id);
         } catch (Exception e) {
             monitoringService.registerNotControlledExceptionLog("","/{id} "+id.toString()+" "+e.getMessage());
+            return ResponseEntity.status(500).body("Error interno del servidor");
+        }
+    }
+    @GetMapping("/tournament/{id}")
+    public ResponseEntity<?> getTournamentInfo(@PathVariable String id){
+        Long idTournament;
+        try {
+            idTournament = Long.parseLong(id);
+            TournamentInfoResponse tournamentInfo = ticketService.tournamentInfo(idTournament);
+            monitoringService.registerSuccessLog("","/tournament/{id} "+id.toString()+" "+tournamentInfo);
+            return ResponseEntity.ok(tournamentInfo);
+         } catch (NumberFormatException e) {
+            monitoringService.registerControlledExceptionLog("","/tournament/{id} "+id.toString()+" "+e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Id inválido: " + id);
+        } catch (Exception e) {
+            monitoringService.registerNotControlledExceptionLog("","/tournament/{id} "+id.toString()+" "+e.getMessage());
             return ResponseEntity.status(500).body("Error interno del servidor");
         }
     }

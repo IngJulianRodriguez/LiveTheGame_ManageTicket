@@ -3,6 +3,7 @@ package com.livethegame.ManageTicket.services;
 import com.livethegame.ManageTicket.common.TicketResponseMapper;
 import com.livethegame.ManageTicket.dto.FoundTicketResponse;
 import com.livethegame.ManageTicket.dto.TicketResponse;
+import com.livethegame.ManageTicket.dto.TournamentInfoResponse;
 import com.livethegame.ManageTicket.entities.*;
 import com.livethegame.ManageTicket.exception.*;
 import com.livethegame.ManageTicket.repository.*;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -18,6 +20,8 @@ public class TicketService {
 
     @Autowired
     TicketRepository ticketRepository;
+    @Autowired
+    BroadcastsRepository broadcastsRepository;
     @Autowired
     TicketsStagesRepository ticketsStageRepository;
     @Autowired
@@ -57,6 +61,40 @@ public class TicketService {
                 = ticketResponseMapper.listTicketsToListFoundTicketsResponse(listTickets);
         return foundTicketListResponse;
     }
+    public TournamentInfoResponse tournamentInfo(Long tournamentId){
+        TournamentInfoResponse tournamentInfoResponse = new TournamentInfoResponse();
+        Optional<Params> optionalParamsServicesPlayTournamentId = paramsRepository.findByName("services.playTournament.id");
+        if (optionalParamsServicesPlayTournamentId.isEmpty()) {
+            throw new ParamsNotFoundException("Parametro tournament.types.free.id no encontrado");
+        }
+        Optional<Params> optionalParamsServicesWatchTournamentId = paramsRepository.findByName("services.watchTournament.id");
+        if (optionalParamsServicesWatchTournamentId.isEmpty()) {
+            throw new ParamsNotFoundException("Parametro services.watchTournament.id no encontrado");
+        }
+        List<Broadcasts> listBroadcast = broadcastsRepository.findByTournamentId(tournamentId);
+
+        List<Tickets> listTickets = ticketRepository.findAll().stream().filter(t -> t.getTicket_stage().getId() == 2)
+                .collect(Collectors.toList());
+        listTickets.forEach(ticket -> {
+            if(optionalParamsServicesPlayTournamentId.get().getValueAsLong()
+                    == ticket.getService().getId()
+                    && ticket.getService_id_value() == tournamentId){
+                tournamentInfoResponse.addNumberOfPlayers();
+                tournamentInfoResponse.addToGainOfTheTournament(ticket.getPrice_ticket());
+            } else if (optionalParamsServicesWatchTournamentId.get().getValueAsLong()
+                    == ticket.getService().getId()
+                    && listBroadcast.stream().anyMatch(b
+                    -> (b.getId() == ticket.getService_id_value()))){
+                tournamentInfoResponse.addNumberOfViewers();
+                Optional<Broadcasts> broadcastsOptional = listBroadcast.stream().filter(broadcasts -> broadcasts.getId() == ticket.getService_id_value()).findFirst();
+                double priceWithoutCommission = priceWithoutCommission(ticket.getPrice_ticket(), broadcastsOptional.get().getPlatform().getCommission());
+                tournamentInfoResponse.addToGainOfTheBroadcasts(priceWithoutCommission);
+            }
+        });
+        System.out.println("--------------------------------------------------------------");
+        System.out.println(tournamentInfoResponse.getGainOfTheTournament());
+        return tournamentInfoResponse;
+    }
 
     private Tickets updateStageTicket(Tickets ticket){
         Optional<Params> optionalParamsTicketStagesPaidId = paramsRepository.findByName("tickets_stages.paid.id");
@@ -77,4 +115,8 @@ public class TicketService {
         return true;
     }
 
+    private double priceWithoutCommission(double price, double commission){
+        double commissionAmount = price * (commission / 100);
+        return price - commissionAmount;
+    }
 }
