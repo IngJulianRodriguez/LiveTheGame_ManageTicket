@@ -71,6 +71,10 @@ public class TicketService {
         if (optionalParamsServicesWatchTournamentId.isEmpty()) {
             throw new ParamsNotFoundException("Parametro services.watchTournament.id no encontrado");
         }
+        Optional<Params> optionalParamsTournamentCommissionValue = paramsRepository.findByName("tournament.commission.value");
+        if (optionalParamsTournamentCommissionValue.isEmpty()) {
+            throw new ParamsNotFoundException("Parametro tournament.commission.value no encontrado");
+        }
         List<Broadcasts> listBroadcast = broadcastsRepository.findByTournamentId(tournamentId);
 
         List<Tickets> listTickets = ticketRepository.findAll().stream().filter(t -> t.getTicket_stage().getId() == 2)
@@ -80,14 +84,15 @@ public class TicketService {
                     == ticket.getService().getId()
                     && ticket.getService_id_value() == tournamentId){
                 tournamentInfoResponse.addNumberOfPlayers();
-                tournamentInfoResponse.addToGainOfTheTournament(ticket.getPrice_ticket());
+                double priceWithoutCommission = getPriceWithoutCommission(ticket.getPrice_ticket(),optionalParamsTournamentCommissionValue.get().getValueAsInt());
+                tournamentInfoResponse.addToGainOfTheTournament(priceWithoutCommission);
             } else if (optionalParamsServicesWatchTournamentId.get().getValueAsLong()
                     == ticket.getService().getId()
                     && listBroadcast.stream().anyMatch(b
                     -> (b.getId() == ticket.getService_id_value()))){
                 tournamentInfoResponse.addNumberOfViewers();
                 Optional<Broadcasts> broadcastsOptional = listBroadcast.stream().filter(broadcasts -> broadcasts.getId() == ticket.getService_id_value()).findFirst();
-                double priceWithoutCommission = priceWithoutCommission(ticket.getPrice_ticket(), broadcastsOptional.get().getPlatform().getCommission());
+                double priceWithoutCommission = getPriceWithoutCommission(ticket.getPrice_ticket(), broadcastsOptional.get().getPlatform().getCommission());
                 tournamentInfoResponse.addToGainOfTheBroadcasts(priceWithoutCommission);
             }
         });
@@ -115,7 +120,7 @@ public class TicketService {
         return true;
     }
 
-    private double priceWithoutCommission(double price, double commission){
+    private double getPriceWithoutCommission(double price, double commission){
         double commissionAmount = price * (commission / 100);
         return price - commissionAmount;
     }
