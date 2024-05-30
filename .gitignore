@@ -1,0 +1,18 @@
+HELP.md
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+target/classes/
+target/generated-sources/
+target/maven-archiver/
+target/maven-status/
+target/surefire-reports/
+target/test-classes/
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### VS Code ###
+.vscode/
